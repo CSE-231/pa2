@@ -67,5 +67,19 @@ describe('run(source, config) function', () => {
     expect(result).to.equal(5);
   });
 
-  // TODO: add additional tests here to ensure the compiler runs as expected
+  it('power op', async() => {
+    const result = await run("pow(3, -1)", config);
+    expect(result).to.equal(0);
+  });
+  
+  it('absolute binary', async() => {
+    const result = await run("abs(-1) + pow(2, 3)", config);
+    expect(result).to.equal(9);
+  });
+
+  it('unary negation', async() => {
+    const result = await run("x = 5 \n -x + abs(-x) + pow(abs(0), 0)", config);
+    expect(result).to.equal(1);
+  });
+
 });

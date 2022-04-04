@@ -14,5 +14,6 @@ export function stringifyTree(t: TreeCursor, source: string, d: number): string 
         } while(t.nextSibling());
         t.parent(); 
     }
+    console.log(str);
     return str;
 }

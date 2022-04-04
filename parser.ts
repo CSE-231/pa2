@@ -163,6 +163,9 @@ export function traverse(c : TreeCursor, s : string) : Array<Stmt> {
 
 export function parse(source : string) : Array<Stmt> {
   const t = parser.parse(source);
-  console.log(stringifyTree(t.cursor(), source, 0));
+  const strTree = stringifyTree(t.cursor(), source, 0);
+  if (strTree == "Script\n")
+    throw new Error("PARSE ERROR : Empty input or program");
+  console.log(strTree);
   return traverse(t.cursor(), source);
 }
