@@ -1,4 +1,4 @@
-import { Stmt, Expr } from "./ast";
+import { Stmt, Expr, BinaryOp} from "./ast";
 import { parse } from "./parser";
 
 // https://learnxinyminutes.com/docs/wasm/
@@ -53,5 +53,25 @@ function codeGenExpr(expr : Expr) : Array<string> {
       return ["(i32.const " + expr.value + ")"];
     case "id":
       return [`(local.get $${expr.name})`];
+    case "binExpr":
+      const leftStmts = codeGenExpr(expr.left);
+      const rightStmts = codeGenExpr(expr.right);
+      const opStmts = codeGenBinOp(expr.op);
+      return [...leftStmts, ...rightStmts, opStmts];
+    case "builtin2":
+      const arg1Stmts = codeGenExpr(expr.arg1);
+      const arg2Stmts = codeGenExpr(expr.arg2);
+      return [...arg1Stmts, ...arg2Stmts, `(call $${expr.name})`];  
+  }
+}
+
+function codeGenBinOp(op: BinaryOp) : string {
+  switch(op) {
+    case BinaryOp.Plus:
+      return "(i32.add)"
+    case BinaryOp.Minus:
+      return "(i32.sub)"
+    case BinaryOp.Mul:
+      return "(i32.mul)"
   }
 }
