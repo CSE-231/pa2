@@ -16,7 +16,7 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr {
         tag: "id",
         name: s.substring(c.from, c.to)
       }
-      
+
     case "CallExpression":
       c.firstChild();
       const callName = s.substring(c.from, c.to);
@@ -46,18 +46,28 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr {
 
     case "UnaryExpression":
       c.firstChild();
-      const op = s.substring(c.from, c.to);
-      if (op !== "-" && op !== "+")
-        throw new Error("PARSE ERROR: unknown unary operator")
+      var optr : BinaryOp;
+      switch(s.substring(c.from, c.to)) {
+        case "+":
+          optr = BinaryOp.Plus;
+          break;
+        case "-":
+          optr = BinaryOp.Minus;
+          break;
+        default: 
+          throw new Error("PARSE ERROR: unknown unary operator")
+      }
+
       c.nextSibling();
-      const num = Number(op + s.substring(c.from, c.to))
-      if (isNaN(num))
-        throw new Error("PARSE ERROR: unary operation failed")
+      const rtarg = traverseExpr(c, s);
       c.parent();
-      return { 
-        tag: "num", 
-        value: num
-      }  
+
+      return {
+        tag: "binExpr",
+        left: castForUnary(),
+        op: optr,
+        right: rtarg
+      } 
 
     case "BinaryExpression":
       c.firstChild();
@@ -91,6 +101,13 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr {
 
     default:
       throw new Error("Could not parse expr at " + c.from + " " + c.to + ": " + s.substring(c.from, c.to));
+  }
+}
+
+export function castForUnary() : Expr {
+  return {
+    tag: "num",
+    value: Number("0")
   }
 }
 
