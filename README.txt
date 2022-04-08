@@ -18,6 +18,8 @@ expression and thus evaluates them based on that. We will have to introduce a ch
 Trying to print x without initialization here returns 'Error: REFERENCE ERROR : undefined local variable' but on the Python interpreter it returns 
 'NameError: name 'y' is not defined'. We need to modify the error messages for compatibility.
 
+[This compiler also supports unary negation for variables : like x = 5 print(-x) or print(--x)]
+
 2. What resources did you find most helpful in completing the assignment?
 Piazza, TA videos.
 

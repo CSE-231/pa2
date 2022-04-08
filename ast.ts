@@ -11,4 +11,3 @@ export type Expr =
   | { tag: "builtin2", name: string, arg1: Expr, arg2: Expr}
 
 export enum BinaryOp {Plus = "PLUS", Minus = "MINUS", Mul = "MUL"}
-
