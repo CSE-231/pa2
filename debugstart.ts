@@ -1,4 +1,4 @@
 import { parse } from "./parser";
 
-var ast = parse("def f(x : int): { return x }");
+var ast = parse("x = (6+5)");
 console.log(ast);
