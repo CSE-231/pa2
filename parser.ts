@@ -209,6 +209,14 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr<null> {
         right: rtarg
       } 
 
+    case "ParenthesizedExpression":
+      c.firstChild(); // go to (
+      c.nextSibling(); // go to Expr
+      const expr = traverseExpr(c,s);
+      c.parent();
+      return expr;
+
+
     case "BinaryExpression":
       c.firstChild();
       const leftarg = traverseExpr(c, s); 
