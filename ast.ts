@@ -5,10 +5,10 @@ export type Program<A> =
   | {a?: A, varDefs: VarDefs<A>[], funDefs: FunDefs<A>[], stmts: Stmt<A>[]}
 
 export type FunDefs<A> = 
-  { a?: A, name: String, params : TypedVar<A>[], ret : Type, body1 : VarDefs<A>[], body2 : Stmt<A>[]}
+  { a?: A, name: string, params : TypedVar<A>[], ret : Type, body1 : VarDefs<A>[], body2 : Stmt<A>[]}
 
 export type VarDefs<A> = 
-  {a?: A, typedVar: TypedVar<A>, literal: Literal<A>}
+  {a?: A, name: string, type: Type, literal: Literal<A>}
 
 export type TypedVar<A> = 
   {a?: A, name: string, type: Type}
@@ -25,8 +25,8 @@ export type Stmt<A> =
   | { a?: A, tag: "pass" }
   | {a?: A, tag: "assign", name: string, value: Expr<A>}
 
-export type Parameter =
-  | { name: string, typ: Type }
+// export type Parameter =
+//   | { name: string, typ: Type }
 
 export type Expr<A> =
     {a?: A, tag: "num", value: number}
@@ -38,6 +38,6 @@ export type Expr<A> =
   | {a?: A, tag: "builtin2", name: string, arg1: Expr<A>, arg2: Expr<A>}
   | { a?: A, tag: "call", name: string, args: Expr<A>[] }
 
-export enum UnaryOp {Not = "NOT", U_Minus = "U_MINUS"}
+export enum UnaryOp {Not, U_Minus}
 
-export enum BinaryOp {Plus = "PLUS", Minus = "MINUS", Mul = "MUL"}
+export enum BinaryOp {Plus, Minus, Mul, D_slash, Mod, Eq, Neq, Leq, Geq, Gt, Lt, Is}
