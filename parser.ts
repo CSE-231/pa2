@@ -131,16 +131,22 @@ export function traverseFunDefs(c : TreeCursor, s: string) : FunDefs<null> {
 export function traverseExpr(c : TreeCursor, s : string) : Expr<null> {
   switch(c.type.name) {
 
-    case "None":
+    case "Number":
       return {
         tag : "literal",
         literal: traverseLiteral(c,s)
       }
 
-    case "Number":
+    case "Boolean":
       return {
-        tag: "num",
-        value: Number(s.substring(c.from, c.to))
+        tag : "literal",
+        literal: traverseLiteral(c,s)
+      }
+
+    case "None":
+      return {
+        tag : "literal",
+        literal: traverseLiteral(c,s)
       }
 
     case "VariableName":
@@ -280,8 +286,8 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr<null> {
 
 export function castForUnary() : Expr<null> {
   return {
-    tag: "num",
-    value: Number("0")
+    tag: "literal",
+    literal : {tag: "num", value: Number("0")}
   }
 }
 
@@ -358,9 +364,7 @@ export function traverse(c : TreeCursor, s : string) : Program<null> {
         } else {
           stmts.push(traverseStmt(c,s));
         }
-        traverseStmt(c, s);
       } while(c.nextSibling())
-      
       return {varDefs, funDefs, stmts}
     
       default:

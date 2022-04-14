@@ -20,31 +20,36 @@ export function compile(source: string) : string {
   let ast = typeCheckProgram(parse(source));
   const emptyEnv = new Map<string, boolean>();
 
-  const funsCode : string[] = [];
-  ast.funDefs.forEach(f => {
-    funsCode.push(codeGenFunction(f, emptyEnv).join("\n"));
-  })
+  const varDecls = ast.varDefs.map(v => `(global $${v.name} (mut i32) (i32.const 0))`).join("\n");
+  const varDefs : string[] = codeGenVarDefs(ast.varDefs, emptyEnv);
 
+  const funsCode : string[] = ast.funDefs.map(f => codeGenFunction(f, emptyEnv)).map(f => f.join("\n"));
   funsCode.join("\n\n");
-  const varDecls = codeGenVarDefs(ast.varDefs);
-
+  
   const allStmts = ast.stmts.map(s => codeGenStmt(s, emptyEnv)).flat();
-  const main = [`(local $scratch i32)`, ...allStmts].join("\n");
+  const main = [`(local $scratch i32)`, ...varDefs, ...allStmts].join("\n");
 
-  const lastStmt = ast.stmts[ast.stmts.length - 1];
-  const isExpr = lastStmt.tag === "expr";
   var retType = "";
   var retVal = "";
+  if (ast.stmts.length > 0) {
+  const lastStmt = ast.stmts[ast.stmts.length - 1];
+  const isExpr = lastStmt.tag === "expr";
+  
   if(isExpr) {
     retType = "(result i32)";
     retVal = "(local.get $scratch)"
   }
+}
 
   return `
     (module
       (func $print_num (import "imports" "print_num") (param i32) (result i32))
       (func $print_bool (import "imports" "print_bool") (param i32) (result i32))
       (func $print_none (import "imports" "print_none") (param i32) (result i32))
+      (func $abs (import "imports" "abs") (param i32) (result i32))
+      (func $max (import "imports" "max") (param i32 i32) (result i32))
+      (func $min (import "imports" "min") (param i32 i32) (result i32))
+      (func $pow (import "imports" "pow") (param i32 i32) (result i32))
       ${varDecls}
       ${funsCode}
       (func (export "_start") ${retType}
@@ -55,20 +60,27 @@ export function compile(source: string) : string {
   `;
 }
 
-function codeGenVarDefs(varDefs : VarDefs<Type>[]) : string {
-  return varDefs.map(v => `(global $${v.name} (mut i32) (i32.const 0))`).join("\n");
+function codeGenVarDefs(varDefs : VarDefs<Type>[], env: LocalEnv) : string[] {
+
+  var compiledDefs:string[] = []; 
+  varDefs.forEach(v => {
+    compiledDefs = [...compiledDefs,...codeGenLiteral(v.literal, env)];
+    if(env.has(v.name)) { compiledDefs.push(`(local.set $${v.name})`); }
+    else { compiledDefs.push(`(global.set $${v.name})`); }  
+
+  });
+  return compiledDefs;
 }
 
 function codeGenFunction(fn : FunDefs<Type>, locals : LocalEnv) : Array<string> {
   // Construct the environment for the function body
 
   const withParamsAndVariables = new Map<string, boolean>(locals.entries());
-  fn.body1.forEach(v => withParamsAndVariables.set(v.name, true));
-  // TODO : Change to specific type
-  const varDefs = fn.body1.map(v => `(local $${v.name} i32)`).join("\n");
-
   fn.params.forEach(p => withParamsAndVariables.set(p.name, true));
   const params = fn.params.map(p => `(param $${p.name} i32)`).join(" ");
+
+  fn.body1.forEach(v => withParamsAndVariables.set(v.name, true));
+  const varDefs = codeGenVarDefs(fn.body1, locals).join("\n");
   
   const stmts = fn.body2.map(s => codeGenStmt(s, withParamsAndVariables)).flat();
   const stmtsBody = stmts.join("\n");
@@ -107,12 +119,12 @@ function codeGenStmt(stmt: Stmt<Type>, locals : LocalEnv) : Array<string> {
 
 export function codeGenLiteral(literal : Literal<Type>, locals : LocalEnv) {
   switch(literal.tag){
-    case "num" : return [`(i32.const ${literal.value})`];
+    case "num" : return ["(i32.const " + literal.value + ")"];
     case "bool": 
-    if(literal.value) 
-      return [`(i32.const 1)`];
-    else 
-      return [`(i32.const 0)`]; 
+      if(literal.value) 
+        return [`(i32.const 1)`];
+      else 
+        return [`(i32.const 0)`]; 
     case "none":
       return [`(i32.const 0)`]; 
   }
@@ -138,11 +150,8 @@ export function codeGenBinaryOp(op : BinaryOp) {
 
 export function codeGenExpr(expr : Expr<Type>, locals : LocalEnv) : Array<string> {
   switch(expr.tag) {
-    case "num": return [`(i32.const ${expr.value})`];
-    case "literal": return codeGenLiteral(expr.literal , locals);
+    case "literal": return codeGenLiteral(expr.literal, locals);
     case "id":
-      // Since we type-checked for making sure all variable exist, here we
-      // just check if it's a local variable and assume it is global if not
       if(locals.has(expr.name)) { return [`(local.get $${expr.name})`]; }
       else { return [`(global.get $${expr.name})`]; }
     case "builtin1":
@@ -160,18 +169,16 @@ export function codeGenExpr(expr : Expr<Type>, locals : LocalEnv) : Array<string
     }
     case "call":
       const valStmts = expr.args.map(e => codeGenExpr(e, locals)).flat();
-      let toCall = expr.name;
+      let callName = expr.name;
       if(expr.name === "print") {
         switch(expr.args[0].a) {
-          case Type.bool: toCall = "print_bool"; break;
-          case Type.int: toCall = "print_num"; break;
-          case Type.none: toCall = "print_none"; break;
+          case Type.bool: callName = "print_bool"; break;
+          case Type.int: callName = "print_num"; break;
+          case Type.none: callName = "print_none"; break;
         }
       }
-      valStmts.push(`(call $${toCall})`);
+      valStmts.push(`(call $${callName  })`);
       return valStmts;
-
-    case "unExpr":
 
   }
 }

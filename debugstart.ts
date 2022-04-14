@@ -1,4 +1,6 @@
+import { compile } from "./compiler";
 import { parse } from "./parser";
 
-var ast = parse("x = (6+5)");
-console.log(ast);
+var output = compile("pow(1,2)");
+console.log(output);
+console.log("hello");

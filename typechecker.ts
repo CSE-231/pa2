@@ -34,9 +34,6 @@ export function typeCheckExpr(expr : Expr<null>, typeEnv : TypeEnv) : Expr<Type>
               });
         
             return {...expr, a: ret, args: newArgs };
-
-
-        case "num": return {...expr, a: Type.int};
        
         case "literal": 
             const lit = typeCheckLiteral(expr.literal); 

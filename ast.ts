@@ -29,7 +29,6 @@ export type Stmt<A> =
 //   | { name: string, typ: Type }
 
 export type Expr<A> =
-    {a?: A, tag: "num", value: number}
   | {a?: A, tag: "literal", literal: Literal<A>} 
   | {a?: A, tag: "id", name: string}
   | {a?: A, tag: "unExpr", op: UnaryOp, right: Expr<A>} 
