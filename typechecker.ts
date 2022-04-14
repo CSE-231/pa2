@@ -138,7 +138,7 @@ export function typeCheckVarDefs(defs: VarDefs<null>[], typeEnv: TypeEnv) : VarD
             throw new Error("TypeError : Variable definition does not have consistent types");
         }
         typedVarDefs.push({...def, a: def.type, literal : typedDef});
-        typeEnv.vars.set(def.name, def.type);
+        //typeEnv.vars.set(def.name, def.type);
     });
 
     return typedVarDefs;
@@ -187,8 +187,8 @@ export function typeCheckStmts(stmts: Stmt<null>[], env : TypeEnv) : Stmt<Type>[
                 typedStmts.push({...stmt, a: Type.none});
                 break;
             case "assign":
-                if (!env.vars.get(stmt.name)) 
-                    throw new Error("TYPE ERROR : variable not found");
+                if (!env.vars.has(stmt.name)) 
+                    throw new Error("TYPE ERROR : unbound id");
                 const typExpr = typeCheckExpr(stmt.value, env);
                 if (typExpr.a !== env.vars.get(stmt.name))
                     throw new Error("TYPE ERROR : LHS and RHS have incompatible types");
@@ -219,6 +219,8 @@ export function typeCheckProgram(prgm : Program<null>) : Program<Type> {
     const varDefs:VarDefs<Type>[] = typeCheckVarDefs(prgm.varDefs, env);
     varDefs.forEach(def => {
         env.vars.set(def.name, def.type);
+        console.log(def.name)
+        console.log(def.type)
     })
 
     const funDefs:FunDefs<Type>[] = [];
