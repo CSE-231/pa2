@@ -80,7 +80,7 @@ function codeGenFunction(fn : FunDefs<Type>, locals : LocalEnv) : Array<string> 
   const params = fn.params.map(p => `(param $${p.name} i32)`).join(" ");
 
   fn.body1.forEach(v => withParamsAndVariables.set(v.name, true));
-  const varDefs = codeGenVarDefs(fn.body1, locals).join("\n");
+  const varDefs = codeGenVarDefs(fn.body1, withParamsAndVariables).join("\n");
   
   const stmts = fn.body2.map(s => codeGenStmt(s, withParamsAndVariables)).flat();
   const stmtsBody = stmts.join("\n");
