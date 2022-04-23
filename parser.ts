@@ -3,9 +3,6 @@ import {TreeCursor} from "lezer-tree";
 import {Expr, Stmt, BinaryOp, Type, TypedVar, VarDefs, Literal, Program, FunDefs, UnaryOp} from "./ast";
 import { stringifyTree } from "./treeprinter";
 
-const stmts:Stmt<null>[] = [];
-const varDefs:VarDefs<null>[] = [];
-const funDefs:FunDefs<null>[] = [];
 
 function isVarDecl(c: TreeCursor, s: string) : Boolean {
   if (c.type.name !== "AssignStatement")
@@ -395,6 +392,11 @@ export function traverseBody(c: TreeCursor, s: string) : Stmt<null>[] {
 }
 
 export function traverse(c : TreeCursor, s : string) : Program<null> {
+
+  var stmts:Stmt<null>[] = [];
+  var varDefs:VarDefs<null>[] = [];
+  var funDefs:FunDefs<null>[] = [];
+
   switch(c.node.type.name) {
     case "Script":
       c.firstChild();

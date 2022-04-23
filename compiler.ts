@@ -18,47 +18,51 @@ export async function run(watSource : string, config: any) : Promise<number> {
 
 export function compile(source: string) : string {
   let ast = typeCheckProgram(parse(source));
-  const emptyEnv = new Map<string, boolean>();
+  var emptyEnv = new Map<string, boolean>();
 
-  const varDecls = ast.varDefs.map(v => `(global $${v.name} (mut i32) (i32.const 0))`).join("\n");
-  const varDefs : string[] = codeGenVarDefs(ast.varDefs, emptyEnv);
+  console.log(ast.varDefs.length)
+  console.log(ast.varDefs)
+  var varDecls = ast.varDefs.map(v => `(global $${v.name} (mut i32) (i32.const 0))`).join("\n");
+  console.log(varDecls)
+  var varDefs : string[] = codeGenVarDefs(ast.varDefs, emptyEnv);
 
-  const funsCode : string[] = ast.funDefs.map(f => codeGenFunction(f, emptyEnv)).map(f => f.join("\n"));
+  var funsCode : string[] = ast.funDefs.map(f => codeGenFunction(f, emptyEnv)).map(f => f.join("\n"));
   funsCode.join("\n\n");
-  console.log(funsCode)
   
-  const allStmts = ast.stmts.map(s => codeGenStmt(s, emptyEnv)).flat();
-  const main = [`(local $scratch i32)`, ...varDefs, ...allStmts].join("\n");
+  var allStmts = ast.stmts.map(s => codeGenStmt(s, emptyEnv)).flat();
+  var main = [`(local $scratch i32)`, ...varDefs, ...allStmts].join("\n");
 
   var retType = "";
   var retVal = "";
   if (ast.stmts.length > 0) {
-  const lastStmt = ast.stmts[ast.stmts.length - 1];
-  const isExpr = lastStmt.tag === "expr";
-  
-  if(isExpr) {
-    retType = "(result i32)";
-    retVal = "(local.get $scratch)"
-  }
-}
+    var lastStmt = ast.stmts[ast.stmts.length - 1];
+    var isExpr = lastStmt.tag === "expr";
 
-  return `
-    (module
-      (func $print_num (import "imports" "print_num") (param i32) (result i32))
-      (func $print_bool (import "imports" "print_bool") (param i32) (result i32))
-      (func $print_none (import "imports" "print_none") (param i32) (result i32))
-      (func $abs (import "imports" "abs") (param i32) (result i32))
-      (func $max (import "imports" "max") (param i32 i32) (result i32))
-      (func $min (import "imports" "min") (param i32 i32) (result i32))
-      (func $pow (import "imports" "pow") (param i32 i32) (result i32))
-      ${varDecls}
-      ${funsCode}
-      (func (export "_start") ${retType}
-        ${main}
-        ${retVal}
-      )
-    ) 
+    if(isExpr) {
+      retType = "(result i32)";
+      retVal = "(local.get $scratch)"
+    }
+  }
+
+  var returnProgram = `
+  (module
+    (func $print_num (import "imports" "print_num") (param i32) (result i32))
+    (func $print_bool (import "imports" "print_bool") (param i32) (result i32))
+    (func $print_none (import "imports" "print_none") (param i32) (result i32))
+    (func $abs (import "imports" "abs") (param i32) (result i32))
+    (func $max (import "imports" "max") (param i32 i32) (result i32))
+    (func $min (import "imports" "min") (param i32 i32) (result i32))
+    (func $pow (import "imports" "pow") (param i32 i32) (result i32))
+    ${varDecls}
+    ${funsCode}
+    (func (export "_start") ${retType}
+      ${main}
+      ${retVal}
+    )
+  ) 
   `;
+
+  return returnProgram;
 }
 
 function codeGenVarDefs(varDefs : VarDefs<Type>[], env: LocalEnv) : string[] {
@@ -166,18 +170,18 @@ export function codeGenLiteral(literal : Literal<Type>, locals : LocalEnv) {
 
 export function codeGenBinaryOp(op : BinaryOp) {
   switch(op) {
-    case BinaryOp.Plus: return [`i32.add`];
-    case BinaryOp.Minus: return [`i32.sub`];
-    case BinaryOp.Mul: return [`i32.mul`];
-    case BinaryOp.D_slash: return [`i32.div_s`];
-    case BinaryOp.Mod: return [`i32.rem_s`];
-    case BinaryOp.Gt: return [`i32.gt_s`];
-    case BinaryOp.Geq: return [`i32.ge_s`];
-    case BinaryOp.Lt: return [`i32.lt_s`];
-    case BinaryOp.Leq: return [`i32.le_s`];
-    case BinaryOp.Eq: return [`i32.eq`];
-    case BinaryOp.Neq: return [`i32.ne`];
-    case BinaryOp.Is: return [`i32.eq`];
+    case BinaryOp.Plus: return [`(i32.add)`];
+    case BinaryOp.Minus: return [`(i32.sub)`];
+    case BinaryOp.Mul: return [`(i32.mul)`];
+    case BinaryOp.D_slash: return [`(i32.div_s)`];
+    case BinaryOp.Mod: return [`(i32.rem_s)`];
+    case BinaryOp.Gt: return [`(i32.gt_s)`];
+    case BinaryOp.Geq: return [`(i32.ge_s)`];
+    case BinaryOp.Lt: return [`(i32.lt_s)`];
+    case BinaryOp.Leq: return [`(i32.le_s)`];
+    case BinaryOp.Eq: return [`(i32.eq)`];
+    case BinaryOp.Neq: return [`(i32.ne)`];
+    case BinaryOp.Is: return [`(i32.eq)`];
     default:
       throw new Error(`Unhandled or unknown op: ${op}`);
   }

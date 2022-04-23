@@ -19,7 +19,7 @@ export function typeCheckExpr(expr : Expr<null>, typeEnv : TypeEnv) : Expr<Type>
             }
 
             if (!typeEnv.functions.has(expr.name)) {
-                throw new Error("function ${e.name} not found");
+                throw new Error(`function ${expr.name} not found`);
             }
             
             const [args, ret] = typeEnv.functions.get(expr.name);
@@ -231,7 +231,7 @@ export function typeCheckStmts(stmts: Stmt<null>[], env : TypeEnv) : Stmt<Type>[
                     throw new Error('Condition should evaluate to a boolean')
                 }
                 const typedLoopStmts = typeCheckStmts(stmt.then, env);
-                typedStmts.push({...stmt, cond: condition, then: typedThenStmts});
+                typedStmts.push({...stmt, cond: condition, then: typedLoopStmts});
                 break;
 
             default:
@@ -248,22 +248,20 @@ function createNewEnv() : TypeEnv {
 
 export function typeCheckProgram(prgm : Program<null>) : Program<Type> {
 
-    const env = createNewEnv();
-    const varDefs:VarDefs<Type>[] = typeCheckVarDefs(prgm.varDefs, env);
+    var env = createNewEnv();
+    var varDefs:VarDefs<Type>[] = typeCheckVarDefs(prgm.varDefs, env);
     varDefs.forEach(def => {
         env.vars.set(def.name, def.type);
-        console.log(def.name)
-        console.log(def.type)
     })
 
-    const funDefs:FunDefs<Type>[] = [];
+    var funDefs:FunDefs<Type>[] = [];
     prgm.funDefs.forEach(f => {
         const typedFunction = typeCheckFunDef(f, env)
         env.functions.set(typedFunction.name, [typedFunction.params.map(p => p.type), typedFunction.ret]);
         funDefs.push(typedFunction);
     });
 
-    const typedStatements = typeCheckStmts(prgm.stmts, env)
+    var typedStatements = typeCheckStmts(prgm.stmts, env)
     return {a: Type.none, varDefs, funDefs, stmts : typedStatements}
 
 }
