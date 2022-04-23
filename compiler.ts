@@ -1,5 +1,5 @@
 import wabt from "wabt";
-import { Stmt, Expr, BinaryOp, FunDefs, Type, VarDefs, Literal} from "./ast";
+import { Stmt, Expr, BinaryOp, FunDefs, Type, VarDefs, Literal, UnaryOp} from "./ast";
 import { parse } from "./parser";
 import { typeCheckProgram } from "./typechecker";
 
@@ -25,6 +25,7 @@ export function compile(source: string) : string {
 
   const funsCode : string[] = ast.funDefs.map(f => codeGenFunction(f, emptyEnv)).map(f => f.join("\n"));
   funsCode.join("\n\n");
+  console.log(funsCode)
   
   const allStmts = ast.stmts.map(s => codeGenStmt(s, emptyEnv)).flat();
   const main = [`(local $scratch i32)`, ...varDefs, ...allStmts].join("\n");
@@ -79,8 +80,9 @@ function codeGenFunction(fn : FunDefs<Type>, locals : LocalEnv) : Array<string> 
   fn.params.forEach(p => withParamsAndVariables.set(p.name, true));
   const params = fn.params.map(p => `(param $${p.name} i32)`).join(" ");
 
+  const varDecls = fn.body1.map(v => `(local $${v.name} i32)`).join("\n");
   fn.body1.forEach(v => withParamsAndVariables.set(v.name, true));
-  const varDefs = codeGenVarDefs(fn.body1, withParamsAndVariables).join("\n");
+  const varDefs = varDecls.concat(codeGenVarDefs(fn.body1, withParamsAndVariables).join("\n"));
   
   const stmts = fn.body2.map(s => codeGenStmt(s, withParamsAndVariables)).flat();
   const stmtsBody = stmts.join("\n");
@@ -114,7 +116,39 @@ function codeGenStmt(stmt: Stmt<Type>, locals : LocalEnv) : Array<string> {
       result.push("return")
       return result;
 
+    case "ifElse":
+      var cond_code = codeGenExpr(stmt.cond, locals);
+      var then_code = codeGenStmts(stmt.then, locals);
+      var else_code = codeGenStmts(stmt.else, locals);
+
+      let if_code:string[]= cond_code.concat([`(if`]).concat([`(then`])
+      if_code = if_code.concat(then_code).concat([`)`])
+
+      if (else_code.length > 0) {
+        if_code = if_code.concat(['(else']).concat(else_code).concat([')',')'])
+      }
+      else {
+        if_code = if_code.concat([`)`])
+      }
+      return if_code
+
+    case "while":
+      var while_cond = codeGenExpr(stmt.cond, locals);
+      var then_code = stmt.then.map((s) => codeGenStmt(s, locals)).flat();
+      return ["(block (loop (br_if 1"]
+        .concat(while_cond)
+        .concat(["(i32.eqz))"])
+        .concat(then_code)
+        .concat(["(br 0) ))"]);
   }
+}
+
+function codeGenStmts(stmts: Stmt<Type>[], env: LocalEnv) : Array<string> {
+  let stmts_code:string[] = []
+  stmts.forEach(stmt => {
+    stmts_code = stmts_code.concat(codeGenStmt(stmt, env))
+  })
+  return stmts_code
 }
 
 export function codeGenLiteral(literal : Literal<Type>, locals : LocalEnv) {
@@ -135,7 +169,7 @@ export function codeGenBinaryOp(op : BinaryOp) {
     case BinaryOp.Plus: return [`i32.add`];
     case BinaryOp.Minus: return [`i32.sub`];
     case BinaryOp.Mul: return [`i32.mul`];
-    case BinaryOp.D_slash: return [`.32.div_s`];
+    case BinaryOp.D_slash: return [`i32.div_s`];
     case BinaryOp.Mod: return [`i32.rem_s`];
     case BinaryOp.Gt: return [`i32.gt_s`];
     case BinaryOp.Geq: return [`i32.ge_s`];
@@ -143,6 +177,7 @@ export function codeGenBinaryOp(op : BinaryOp) {
     case BinaryOp.Leq: return [`i32.le_s`];
     case BinaryOp.Eq: return [`i32.eq`];
     case BinaryOp.Neq: return [`i32.ne`];
+    case BinaryOp.Is: return [`i32.eq`];
     default:
       throw new Error(`Unhandled or unknown op: ${op}`);
   }
@@ -167,6 +202,16 @@ export function codeGenExpr(expr : Expr<Type>, locals : LocalEnv) : Array<string
       const opstmts = codeGenBinaryOp(expr.op);
       return [...lhsExprs, ...rhsExprs, ...opstmts];
     }
+    case "unExpr":
+      const exprStmts = codeGenExpr(expr.right, locals);
+      switch (expr.op) {
+        case UnaryOp.U_Minus:
+          return [`(i32.const 0)`].concat(exprStmts).concat([`(i32.sub)`]);
+        case UnaryOp.Not:
+          return exprStmts.concat([`(i32.const 1)`, `(i32.xor)`]);
+        case UnaryOp.U_Plus:
+          return [`(i32.const 0)`].concat(exprStmts).concat([`(i32.add)`]);
+      }
     case "call":
       const valStmts = expr.args.map(e => codeGenExpr(e, locals)).flat();
       let callName = expr.name;

@@ -100,9 +100,14 @@ export function typeCheckExpr(expr : Expr<null>, typeEnv : TypeEnv) : Expr<Type>
 
                 case BinaryOp.Is:
                     //check none and return boolean
+                    if (validIsType(left.a) && validIsType(right.a)) {
+                        return {...expr, a: Type.bool}; 
+                    } 
+
+                    throw new Error("TypeError : Incompatible types using Is operator");
 
                 default:
-                    throw new Error(`Unhandled op ${expr.op}`)
+                    throw new Error(`Unhandled op`)
             }
 
         case "unExpr":
@@ -114,12 +119,20 @@ export function typeCheckExpr(expr : Expr<null>, typeEnv : TypeEnv) : Expr<Type>
                     } 
                     return {...expr, a: Type.bool, right:rt};
                 case UnaryOp.U_Minus:
+                case UnaryOp.U_Plus:
                     if (rt.a !== Type.int) {
                         throw new Error("TypeError : Expression does not evaluate to int");
                     } 
                     return {...expr, a: Type.int, right:rt};
             }
+
+        default:
+            throw new Error("Undefined expression type");
     }
+}
+
+function validIsType(type : Type) : Boolean {
+    return type === Type.none;
 }
 
 export function typeCheckLiteral(literal : Literal<null>) : Literal<Type> {
@@ -138,7 +151,7 @@ export function typeCheckVarDefs(defs: VarDefs<null>[], typeEnv: TypeEnv) : VarD
             throw new Error("TypeError : Variable definition does not have consistent types");
         }
         typedVarDefs.push({...def, a: def.type, literal : typedDef});
-        //typeEnv.vars.set(def.name, def.type);
+        typeEnv.vars.set(def.name, def.type);
     });
 
     return typedVarDefs;
@@ -201,6 +214,26 @@ export function typeCheckStmts(stmts: Stmt<null>[], env : TypeEnv) : Stmt<Type>[
                 }
                 typedStmts.push({...stmt, value: newExpr, a:Type.none});
                 break;
+
+            case "ifElse":
+                const cond = typeCheckExpr(stmt.cond, env);
+                if (cond.a !== Type.bool) {
+                    throw new Error('Condition should evaluate to a boolean')
+                }
+                const typedThenStmts = typeCheckStmts(stmt.then, env);
+                const typedElseStmts = typeCheckStmts(stmt.else, env);
+                typedStmts.push({...stmt, cond, then: typedThenStmts, else: typedElseStmts});
+                break;
+            
+            case "while":
+                const condition = typeCheckExpr(stmt.cond, env);
+                if (condition.a !== Type.bool) {
+                    throw new Error('Condition should evaluate to a boolean')
+                }
+                const typedLoopStmts = typeCheckStmts(stmt.then, env);
+                typedStmts.push({...stmt, cond: condition, then: typedThenStmts});
+                break;
+
             default:
                 throw new Error("TYPE ERROR : Unknown statement type");
         }

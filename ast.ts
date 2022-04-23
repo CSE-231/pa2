@@ -24,6 +24,8 @@ export type Stmt<A> =
   | {a?: A, tag: "return", value: Expr<A>}
   | {a?: A, tag: "pass" }
   | {a?: A, tag: "assign", name: string, value: Expr<A>}
+  | {a ?: A, tag: "ifElse", cond: Expr<A>, then: Stmt<A>[], else: Stmt<A>[]}
+  | {a ?: A, tag: "while", cond: Expr<A>, then: Stmt<A>[]}
 
 // export type Parameter =
 //   | { name: string, typ: Type }
@@ -37,6 +39,6 @@ export type Expr<A> =
   | {a?: A, tag: "builtin2", name: string, arg1: Expr<A>, arg2: Expr<A>}
   | { a?: A, tag: "call", name: string, args: Expr<A>[] }
 
-export enum UnaryOp {Not, U_Minus}
+export enum UnaryOp {Not, U_Minus, U_Plus}
 
 export enum BinaryOp {Plus, Minus, Mul, D_slash, Mod, Eq, Neq, Leq, Geq, Gt, Lt, Is}

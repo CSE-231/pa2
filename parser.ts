@@ -1,6 +1,6 @@
 import {parser} from "lezer-python";
 import {TreeCursor} from "lezer-tree";
-import {Expr, Stmt, BinaryOp, Type, TypedVar, VarDefs, Literal, Program, FunDefs} from "./ast";
+import {Expr, Stmt, BinaryOp, Type, TypedVar, VarDefs, Literal, Program, FunDefs, UnaryOp} from "./ast";
 import { stringifyTree } from "./treeprinter";
 
 const stmts:Stmt<null>[] = [];
@@ -50,7 +50,7 @@ export function traverseLiteral(c: TreeCursor, s: string) : Literal<null> {
     case "Number":
       return {tag: "num", value: Number(s.substring(c.from, c.to))};
     case "Boolean":
-      return {tag: "bool", value: Boolean(s.substring(c.from, c.to))};
+      return {tag: "bool", value: s.substring(c.from, c.to) === "True" };
     case "None":
       return {tag: "none"}
     default:
@@ -91,12 +91,13 @@ export function traverseFunDefs(c : TreeCursor, s: string) : FunDefs<null> {
   if (c.type.name === "TypeDef") {
     c.firstChild(); // go into return type
     //TODO : double check here if we need a nextSibling call
+    c.nextSibling();
     returnType = traverseType(c, s)
     c.parent();
   }
 
   c.nextSibling(); //body parse
-  c.nextSibling(); //:
+  c.firstChild(); //:
   c.nextSibling(); // first stmt
 
   const varInits : VarDefs<null>[] = [];
@@ -160,6 +161,7 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr<null> {
       const callName = s.substring(c.from, c.to);
       c.nextSibling(); // go to arglist
       var args = traverseArgs(c, s);
+      console.log(args)
 
       if (callName === "abs") {
         if (args.length === 1) {
@@ -192,13 +194,16 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr<null> {
 
     case "UnaryExpression":
       c.firstChild();
-      var optr : BinaryOp;
+      var optr : UnaryOp;
       switch(s.substring(c.from, c.to)) {
         case "+":
-          optr = BinaryOp.Plus;
+          optr = UnaryOp.U_Plus;
           break;
         case "-":
-          optr = BinaryOp.Minus;
+          optr = UnaryOp.U_Minus;
+          break;
+        case "not":
+          optr = UnaryOp.Not;
           break;
         default: 
           throw new Error("PARSE ERROR: unknown unary operator")
@@ -209,8 +214,7 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr<null> {
       c.parent();
 
       return {
-        tag: "binExpr",
-        left: castForUnary(),
+        tag: "unExpr",
         op: optr,
         right: rtarg
       } 
@@ -295,8 +299,10 @@ export function traverseArgs(c: TreeCursor, s: string) : Array<Expr<null>> {
   var args : Array<Expr<null>> = [];
   c.firstChild(); // go into arglist
   while(c.nextSibling()) { // is this right ?
-      args.push(traverseExpr(c, s))
-      c.nextSibling();
+    if (c.type.name === ")")
+      break;
+    args.push(traverseExpr(c, s))
+    c.nextSibling();
   }
   c.parent(); // pop arglist
   return args;
@@ -331,10 +337,61 @@ export function traverseStmt(c : TreeCursor, s : string) : Stmt<null> {
       const val = traverseExpr(c, s);
       c.parent();
       return {tag : "return", value: val}
+
+    case "IfStatement":
+      c.firstChild(); // go to If
+      c.nextSibling(); // go to condition
+      const condition = traverseExpr(c,s);
+      c.nextSibling(); // move to Body
+      const then_block = traverseBody(c, s);
+      
+      let curr_stmt: Stmt<null> = { tag: "ifElse", cond : condition, then : then_block, else: []};
+      const result: Stmt<null> = curr_stmt;
+
+      while (c.nextSibling()) {
+        if (c.type.name === "elif") {
+          c.nextSibling(); // go to condition
+          const elif_cond = traverseExpr(c, s);
+          c.nextSibling(); // move to elif body
+          const elif_block = traverseBody(c, s);
+          
+          const new_stmt: Stmt<null> = { tag: "ifElse", cond : elif_cond, then: elif_block, else: []};
+          curr_stmt.else = [new_stmt];
+          curr_stmt = new_stmt;
+        } 
+
+        if (c.type.name === "else") {
+          c.nextSibling(); // move to else body
+          const else_block = traverseBody(c, s);
+          curr_stmt.else = else_block;
+        }
+      }
+
+      c.parent(); // Pop to IfStatement
+      return result;
+
+    case "WhileStatement":
+      c.firstChild(); // go to while
+      c.nextSibling(); // go to condition
+      const cond = traverseExpr(c,s);
+      c.nextSibling(); // move to Body
+      const then = traverseBody(c, s);
+      c.parent();
+      return {tag : "while", cond, then}
     
     default:
       throw new Error("Could not parse stmt at " + c.node.from + " " + c.node.to + ": " + s.substring(c.from, c.to));
   }
+}
+
+export function traverseBody(c: TreeCursor, s: string) : Stmt<null>[] {
+  var parsedStmts : Stmt<null>[] = []
+  c.firstChild(); // move to  :
+  while (c.nextSibling()) {
+    parsedStmts.push(traverseStmt(c,s))
+  }
+  c.parent(); //back to body
+  return parsedStmts
 }
 
 export function traverse(c : TreeCursor, s : string) : Program<null> {
